@@ -1,0 +1,108 @@
+ 1. Page Configuration
+st.set_page_config(page_title="Muscle Target & Volume Tracker", layout="wide")
+st.title("🏋️‍♂️ Interactive Workout Tracker & Muscle Mapper")
+st.write("Log your exercises to visually track targeted muscle groups and total volume.")
+
+# 2. Comprehensive Exercise & Muscle Database
+EXERCISE_DB = {
+    "Bench Press": {"Primary": "Chest", "Secondary": "Triceps", "Category": "Push"},
+    "Incline Dumbbell Press": {"Primary": "Chest", "Secondary": "Shoulders", "Category": "Push"},
+    "Overhead Press": {"Primary": "Shoulders", "Secondary": "Triceps", "Category": "Push"},
+    "Lateral Raises": {"Primary": "Shoulders", "Secondary": "Traps", "Category": "Push"},
+    "Tricep Pushdowns": {"Primary": "Triceps", "Secondary": "Chest", "Category": "Push"},
+    "Pull-Ups": {"Primary": "Lats", "Secondary": "Biceps", "Category": "Pull"},
+    "Barbell Rows": {"Primary": "Upper Back", "Secondary": "Lats", "Category": "Pull"},
+    "Lat Pulldowns": {"Primary": "Lats", "Secondary": "Biceps", "Category": "Pull"},
+    "Bicep Curls": {"Primary": "Biceps", "Secondary": "Forearms", "Category": "Pull"},
+    "Face Pulls": {"Primary": "Rear Delts", "Secondary": "Traps", "Category": "Pull"},
+    "Squats": {"Primary": "Quads", "Secondary": "Glutes", "Category": "Legs"},
+    "Deadlifts": {"Primary": "Hamstrings", "Secondary": "Lower Back", "Category": "Legs"},
+    "Romanian Deadlifts": {"Primary": "Hamstrings", "Secondary": "Glutes", "Category": "Legs"},
+    "Leg Press": {"Primary": "Quads", "Secondary": "Calves", "Category": "Legs"},
+    "Calf Raises": {"Primary": "Calves", "Secondary": "Hamstrings", "Category": "Legs"},
+    "Plank": {"Primary": "Abs", "Secondary": "Lower Back", "Category": "Core"},
+    "Hanging Leg Raises": {"Primary": "Abs", "Secondary": "Hip Flexors", "Category": "Core"}
+}
+
+# 3. Initialize Session State for Workout History
+if "workout_log" not in st.session_state:
+    st.session_state.workout_log = []
+
+# 4. Sidebar Layout for User Input Data
+st.sidebar.header("Add New Exercise Entry")
+selected_exercise = st.sidebar.selectbox("Choose Exercise:", list(EXERCISE_DB.keys()))
+
+# Display Muscle Data of selected item immediately in Sidebar
+primary_target = EXERCISE_DB[selected_exercise]["Primary"]
+secondary_target = EXERCISE_DB[selected_exercise]["Secondary"]
+st.sidebar.info(f"🎯 **Primary Target:** {primary_target}\n\n💪 **Secondary Target:** {secondary_target}")
+
+# Reps, Sets, and Weight Inputs
+sets = st.sidebar.number_input("Sets:", min_value=1, max_value=10, value=3, step=1)
+reps = st.sidebar.number_input("Reps per Set:", min_value=1, max_value=100, value=10, step=1)
+weight = st.sidebar.number_input("Weight (lbs/kg):", min_value=0, max_value=1000, value=135, step=5)
+
+if st.sidebar.button("Add to Workout Log"):
+    # Calculate Total Volume: Sets x Reps x Weight
+    total_volume = sets * reps * weight
+    # Calculate Total Reps: Sets x Reps
+    total_reps = sets * reps
+    
+    st.session_state.workout_log.append({
+        "Exercise": selected_exercise,
+        "Primary Target": primary_target,
+        "Secondary Target": secondary_target,
+        "Sets": sets,
+        "Reps": reps,
+        "Total Reps": total_reps,
+        "Weight": weight,
+        "Volume": total_volume
+    })
+    st.sidebar.success(f"Added {selected_exercise} successfully!")
+
+# 5. Main Content Dashboard
+if st.session_state.workout_log:
+    df = pd.DataFrame(st.session_state.workout_log)
+    
+    col1, col2 = st.columns()
+    
+    with col1:
+        st.subheader("📋 Today's Workout Routine")
+        st.dataframe(df[["Exercise", "Primary Target", "Secondary Target", "Sets", "Reps", "Total Reps", "Weight", "Volume"]], use_container_width=True)
+        
+        if st.button("Clear Workout Log"):
+            st.session_state.workout_log = []
+            st.rerun()
+
+    with col2:
+        st.subheader("📊 Muscle Activation Summary")
+        
+        # Calculate Muscle Activation Volume Metrics
+        # Full volume credit goes to Primary Muscle, 50% volume credit goes to Secondary Muscle
+        muscle_loads = {}
+        for row in st.session_state.workout_log:
+            p_musc = row["Primary Target"]
+            s_musc = row["Secondary Target"]
+            vol = row["Volume"]
+            
+            muscle_loads[p_musc] = muscle_loads.get(p_musc, 0) + vol
+            muscle_loads[s_musc] = muscle_loads.get(s_musc, 0) + (vol * 0.5)
+
+        # Convert to Dataframe for Data Plotting
+        plot_df = pd.DataFrame(list(muscle_loads.items()), columns=["Muscle", "Calculated Load"]).sort_values(by="Calculated Load", ascending=True)
+        
+        # Generate Visualization Chart Using Matplotlib
+        fig, ax = plt.subplots(figsize=(6, 4))
+        colors = ['#1f77b4' if x < plot_df['Calculated Load'].max() else '#ff7f0e' for x in plot_df['Calculated Load']]
+        ax.barh(plot_df["Muscle"], plot_df["Calculated Load"], color=colors)
+        ax.set_xlabel("Accumulated Load Metric (Sets x Reps x Weight)")
+        ax.set_ylabel("Targeted Muscles")
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout()
+        
+        st.pyplot(fig)
+
+else:
+    st.info("Your workout sheet is empty. Use the left sidebar selector panel to add your exercises and track muscle targeting!")
+Use code with caution.Let me know if you hit any roadblocks while launching the code on Streamlit, or if you want to add some custom exercises right now before you deploy it!
